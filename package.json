@@ -5,7 +5,7 @@
   "description": "Semi-automated tiwall.com ticket reservation assistant. Stops at the bank payment page for manual card entry.",
   "main": "run.js",
   "scripts": {
-    "test": "node --test lib/",
+    "test": "node --test lib/*.test.js",
     "start": "node run.js"
   },
   "dependencies": {

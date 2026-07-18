@@ -13,7 +13,11 @@ async function attemptOnce(page, profile, log) {
     return false;
   }
 
-  await page.waitForTimeout(300);
+  const seatMapReady = await seatFlow.waitForSeatMap(page);
+  if (!seatMapReady) {
+    log('Seat map did not render in time.');
+    return false;
+  }
 
   const maxTickets = await seatFlow.getShowMaxTickets(page);
   if (maxTickets !== null && profile.ticketCount > maxTickets) {
@@ -33,8 +37,6 @@ async function attemptOnce(page, profile, log) {
     log('Reserve button not available.');
     return false;
   }
-
-  await page.waitForTimeout(300);
 
   const succeeded = await seatFlow.reservationSucceeded(page);
   if (!succeeded) {
