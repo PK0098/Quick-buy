@@ -1,0 +1,14 @@
+{
+  "name": "tiwall-autobuy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Semi-automated tiwall.com ticket reservation assistant. Stops at the bank payment page for manual card entry.",
+  "main": "run.js",
+  "scripts": {
+    "test": "node --test lib/",
+    "start": "node run.js"
+  },
+  "dependencies": {
+    "playwright": "^1.47.0"
+  }
+}
