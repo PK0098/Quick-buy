@@ -16,10 +16,10 @@ touches payment credentials or your tiwall account password.
 ```bash
 npm install
 npx playwright install chromium
-cp settings.example.json settings.json
 ```
 
-Edit `settings.json`:
+`settings.json` already exists in the project with placeholder values — edit it
+directly (it's gitignored, so your real name/phone/email never get committed):
 - `buyer`: your name, phone, and optional email.
 - `profiles.<name>`: one entry per show/session you want to target.
   - `showUrl`: the tiwall show page, e.g. `https://www.tiwall.com/s/uncle.vanya`.
