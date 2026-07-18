@@ -7,9 +7,11 @@ Semi-automated assistant for buying tiwall.com theater tickets the instant a sal
 At a configured date/time, opens a visible Chromium window, selects your chosen
 session, selects your preferred seats (falling back to the cheapest available if
 any are taken), places a reservation, and fills in your name/phone/email. It then
-clicks "پرداخت" and stops completely at the bank's payment page — **you always
-type your card number, expiry, and CVV yourself.** The tool never stores or
-touches payment credentials or your tiwall account password.
+clicks "پرداخت", and on the bank's own payment-method page picks "پرداخت با کارت
+شتابی" (or the quicker wallet option, if you're already logged into it there) --
+then stops completely. **You always type your card number, expiry, and CVV
+yourself.** The tool never stores or touches payment credentials or your tiwall
+account password.
 
 ## Setup
 
@@ -68,13 +70,19 @@ validation, countdown timing, logger, alert) — 22 tests, all passing.
 
 The browser-driving flow in `lib/seatFlow.js` isn't unit tested — it's
 verified by actually running `node run.js murakami-test` against the live
-site. This is how two real bugs were caught and fixed during development:
+site. This is how several real bugs were caught and fixed during development:
 seat/price data hydrates into the seat map slightly after the chair elements
 themselves attach (reading too early makes every seat look free with no
-price), and seats another shopper currently has on hold carry a `pending`
-class that must be excluded alongside `reserved` and `locked-chair`. If
-tiwall changes its markup in the future, re-run the same dry run and use the
-troubleshooting notes in `docs/superpowers/plans/2026-07-18-tiwall-ticket-autobuy.md`
+price); seats another shopper currently has on hold carry a `pending` class
+that must be excluded alongside `reserved` and `locked-chair`; the session
+list itself renders client-side slightly after the page's DOM shell exists,
+so a dedicated readiness wait was needed rather than a fixed delay; and
+`page.goto()`'s default wait condition ("load" -- every image/font/analytics
+script) made the first step look slow (~22s) even though the actual click
+logic was fast, fixed by waiting only for `"domcontentloaded"` plus an
+explicit wait for the session list's own heading text. If tiwall changes its
+markup in the future, re-run the same dry run and use the troubleshooting
+notes in `docs/superpowers/plans/2026-07-18-tiwall-ticket-autobuy.md`
 (Task 9) to diagnose.
 
 ## Known limitations

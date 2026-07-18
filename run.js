@@ -70,11 +70,33 @@ async function main() {
   const page = context.pages()[0] || (await context.newPage());
 
   try {
+    // The show page is heavy (images, fonts, ads, analytics). Waiting for all of
+    // that ("load", Playwright's default) is what actually made the first step
+    // look slow -- not clicking the session link itself. "domcontentloaded" only
+    // waits for the DOM to exist, which is all clickSession needs.
+    //
+    // When there's a real countdown to wait out, spend part of that idle time
+    // pre-loading the page now so the browser/OS/CDN connection is already warm
+    // by go-time; the real navigation at T-0 reloads fresh (so it still reflects
+    // the show having actually gone on sale) but lands much faster on a warm
+    // connection than this first cold load did.
+    if (profile.targetDatetime) {
+      log('Pre-loading the show page now to warm up the connection before go-time...');
+      await page
+        .goto(profile.showUrl, { waitUntil: 'domcontentloaded' })
+        .catch((err) => log(`Warm-up load failed, will retry at go-time: ${err.message}`));
+    }
+
     log('Waiting until target time...');
     await waitUntil(profile.targetDatetime);
     log('Target time reached, navigating to show page.');
 
-    await page.goto(profile.showUrl);
+    await page.goto(profile.showUrl, { waitUntil: 'domcontentloaded' });
+
+    const sessionListReady = await seatFlow.waitForSessionList(page);
+    if (!sessionListReady) {
+      log('Session list did not render in time -- continuing anyway, retry loop may still catch it.');
+    }
 
     const deadline = Date.now() + profile.retryWindowSeconds * 1000;
     let success = false;
@@ -106,7 +128,15 @@ async function main() {
     log('Submitting to bank payment page.');
     await seatFlow.clickPayAndHandoff(page);
 
-    log('Reached bank payment redirect. Handing off for manual card entry.');
+    log('Choosing payment method on the bank page (card vs. wallet)...');
+    const methodResult = await seatFlow.clickBankPaymentMethod(page);
+    if (methodResult.clicked) {
+      log(`Selected the "${methodResult.option}" payment method.`);
+    } else {
+      log(`Could not auto-select a payment method: ${methodResult.reason} Continue manually.`);
+    }
+
+    log('Handing off for manual card entry.');
     handoffAlert('RESERVED - complete payment manually now (15 minute window)');
   } finally {
     log('Run finished. Browser window left open for manual continuation.');
