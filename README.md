@@ -80,6 +80,55 @@ Ctrl+C the terminal, when you're done. If a run reserves a seat and you decide
 not to pay, use tiwall's own "لغو رزرو" (cancel reservation) button in that
 window to release it immediately instead of waiting out the 15-minute hold.
 
+## Recording a new site (v2, generic)
+
+For sites other than tiwall, instead of hand-writing a profile, you can record one:
+
+```bash
+node recorder.js <name> <startUrl>
+```
+
+A browser opens at `startUrl`. Click through the site manually -- pick your
+date/session, your seats, fill in your details -- at your own pace. A floating
+"Done — continue" button appears in the corner; click it once your selection
+is where you want it. The tool saves everything you clicked and typed as a new
+entry under `recordings.<name>` in `settings.json`.
+
+**Hard safety rule, on every site, always:** password fields and any
+financial-account-like field (card number/CVV/expiry, IBAN, bank account,
+routing number, etc.) are never recorded and never filled, and recording (and
+later, replay) stops immediately if the browser ever leaves the starting
+site's domain -- treated as reaching a payment gateway.
+
+Before using it for real, edit the new recording's `targetDatetime`. Since
+recording requires a session that's already open (you can't click a disabled
+one), if your real target is a different date, you'll also need to re-record
+against that date once it's open, or hand-edit the relevant recorded click
+text to match.
+
+Run it with:
+
+```bash
+node replay.js <name>
+```
+
+Replay re-finds each recorded click/fill by the same text/label it was
+recorded with, reloading and restarting the whole sequence from the beginning
+whenever a step can't be found -- bounded by that recording's
+`retryWindowSeconds`. A transient error during an attempt (e.g. a navigation
+hiccup) is caught and retried the same way, rather than aborting the whole
+run. It stops the same way tiwall's own flow does: the
+moment it would need to fill a payment-like field, or the moment the browser
+leaves the recorded site's domain, it hands off for you to finish manually.
+
+**One thing to keep in mind:** because a stuck retry restarts the *entire*
+recorded sequence from step 1 (not just the step that failed), an early action
+that isn't safely repeatable -- e.g. a "click Buy" that hard-adds to a cart or
+opens a new payment intent each time, rather than being a no-op if already
+done -- could fire more than once across retries. Before relying on a
+recording for a site where that matters, think through whether its early
+steps tolerate being replayed from scratch.
+
 ## Testing
 
 ```bash
@@ -87,7 +136,7 @@ npm test
 ```
 
 Runs the unit tests for the pure logic (seat-selection fallback, config
-validation, countdown timing, logger, alert) — 24 tests, all passing.
+validation, countdown timing, logger, alert) — 45 tests, all passing.
 
 The browser-driving flow in `lib/seatFlow.js` isn't unit tested — it's
 verified by actually running `node run.js murakami-test` against the live
