@@ -90,12 +90,13 @@ node recorder.js <name> <startUrl>
 
 A browser opens at `startUrl`. Click through the site manually -- pick your
 date/session, your seats, fill in your details -- at your own pace. A floating
-"Done - continue" button appears in the corner; click it once your selection
+"Done — continue" button appears in the corner; click it once your selection
 is where you want it. The tool saves everything you clicked and typed as a new
 entry under `recordings.<name>` in `settings.json`.
 
-**Hard safety rule, on every site, always:** password fields and card-number/
-CVV/expiry-like fields are never recorded and never filled, and recording (and
+**Hard safety rule, on every site, always:** password fields and any
+financial-account-like field (card number/CVV/expiry, IBAN, bank account,
+routing number, etc.) are never recorded and never filled, and recording (and
 later, replay) stops immediately if the browser ever leaves the starting
 site's domain -- treated as reaching a payment gateway.
 
@@ -114,7 +115,9 @@ node replay.js <name>
 Replay re-finds each recorded click/fill by the same text/label it was
 recorded with, reloading and restarting the whole sequence from the beginning
 whenever a step can't be found -- bounded by that recording's
-`retryWindowSeconds`. It stops the same way tiwall's own flow does: the
+`retryWindowSeconds`. A transient error during an attempt (e.g. a navigation
+hiccup) is caught and retried the same way, rather than aborting the whole
+run. It stops the same way tiwall's own flow does: the
 moment it would need to fill a payment-like field, or the moment the browser
 leaves the recorded site's domain, it hands off for you to finish manually.
 
@@ -133,7 +136,7 @@ npm test
 ```
 
 Runs the unit tests for the pure logic (seat-selection fallback, config
-validation, countdown timing, logger, alert) — 24 tests, all passing.
+validation, countdown timing, logger, alert) — 45 tests, all passing.
 
 The browser-driving flow in `lib/seatFlow.js` isn't unit tested — it's
 verified by actually running `node run.js murakami-test` against the live
