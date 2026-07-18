@@ -22,11 +22,11 @@ npx playwright install chromium
 
 `settings.json` already exists in the project with placeholder values — edit it
 directly (it's gitignored, so your real name/phone/email never get committed):
-- `mode`: `"main"` (default) runs at full speed. `"test"` pauses **2 seconds
+- `testMode`: `false` (default) runs at full speed. `true` pauses **2 seconds
   after every step** (session click, seat selection, reserve, form fill,
   submit, payment method) so you can watch each one happen in the browser
-  window. Use `"test"` while getting familiar with the tool or diagnosing a
-  problem; switch back to `"main"` for the real timed run.
+  window. Use `true` while getting familiar with the tool or diagnosing a
+  problem; set back to `false` for the real timed run.
 - `buyer`: your name, phone, and optional email.
 - `profiles.<name>`: one entry per show/session you want to target.
   - `showUrl`: the tiwall show page, e.g. `https://www.tiwall.com/s/uncle.vanya`.
