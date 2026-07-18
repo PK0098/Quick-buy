@@ -54,6 +54,18 @@ async function main() {
       try {
         await page.goto(recording.startUrl, { waitUntil: 'domcontentloaded' });
 
+        let postGotoOrigin;
+        try {
+          postGotoOrigin = new URL(page.url()).origin;
+        } catch {
+          postGotoOrigin = startOrigin;
+        }
+        if (postGotoOrigin !== startOrigin) {
+          log('Landed on a different domain immediately after reload -- stopping for manual continuation.');
+          handoffAlert('REACHED A DIFFERENT DOMAIN - continue manually now');
+          return;
+        }
+
         const result = await runSequence(page, recording.actions, log, startOrigin);
 
         if (result.success) {
