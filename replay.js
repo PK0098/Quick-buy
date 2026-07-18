@@ -50,32 +50,38 @@ async function main() {
     while (Date.now() < deadline && !success) {
       attemptNumber += 1;
       log(`Attempt #${attemptNumber}`);
-      await page.goto(recording.startUrl, { waitUntil: 'domcontentloaded' });
 
-      const result = await runSequence(page, recording.actions, log, startOrigin);
+      try {
+        await page.goto(recording.startUrl, { waitUntil: 'domcontentloaded' });
 
-      if (result.success) {
-        success = true;
-        break;
-      }
-      if (result.domainChanged) {
-        log(`Left the recorded site's domain after step ${result.atStep + 1} -- stopping for manual continuation.`);
-        handoffAlert('REACHED A DIFFERENT DOMAIN - continue manually now');
-        return;
-      }
-      if (result.blockedAtStep !== undefined) {
-        log(
-          `Step ${result.blockedAtStep + 1} would have filled a payment-like field -- stopping for manual entry.`
-        );
-        handoffAlert('REACHED A PAYMENT-LIKE FIELD - complete manually now');
-        return;
+        const result = await runSequence(page, recording.actions, log, startOrigin);
+
+        if (result.success) {
+          success = true;
+          break;
+        }
+        if (result.domainChanged) {
+          log(`Left the recorded site's domain after step ${result.atStep + 1} -- stopping for manual continuation.`);
+          handoffAlert('REACHED A DIFFERENT DOMAIN - continue manually now');
+          return;
+        }
+        if (result.blockedAtStep !== undefined) {
+          log(
+            `Step ${result.blockedAtStep + 1} would have filled a payment-like field -- stopping for manual entry.`
+          );
+          handoffAlert('REACHED A PAYMENT-LIKE FIELD - complete manually now');
+          return;
+        }
+
+        const stepDesc =
+          result.action.type === 'click'
+            ? `looking for "${result.action.text}"`
+            : `looking for field "${result.action.label}"`;
+        log(`Stuck at step ${result.stuckAtStep + 1} (${stepDesc}), reloading and retrying...`);
+      } catch (err) {
+        log(`Attempt #${attemptNumber} error: ${err.message}`);
       }
 
-      const stepDesc =
-        result.action.type === 'click'
-          ? `looking for "${result.action.text}"`
-          : `looking for field "${result.action.label}"`;
-      log(`Stuck at step ${result.stuckAtStep + 1} (${stepDesc}), reloading and retrying...`);
       await new Promise((resolve) => setTimeout(resolve, recording.retryIntervalMs));
     }
 
