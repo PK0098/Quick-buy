@@ -11,10 +11,29 @@ function sleepMs(ms) {
 }
 
 async function attemptOnce(page, profile, log, stepDelayMs) {
+  // "found but disabled" means the site itself hasn't flipped the session to
+  // on-sale yet in whatever HTML it last rendered -- retrying clicks against
+  // that same DOM can never succeed, only a fresh reload can. "not found at
+  // all" more likely just means the session list is still hydrating, which a
+  // quick re-check (no reload) can catch a moment later.
+  const state = await seatFlow.getSessionState(page, profile.sessionMatch);
+  if (!state.found) {
+    log('Session not found on the page yet.');
+    return { success: false, needsReload: false };
+  }
+  if (state.soldOut) {
+    log('Session is sold out.');
+    return { success: false, needsReload: false };
+  }
+  if (state.disabled) {
+    log('Session found but not yet on sale -- reloading before the next attempt.');
+    return { success: false, needsReload: true };
+  }
+
   const sessionClicked = await seatFlow.clickSession(page, profile.sessionMatch);
   if (!sessionClicked) {
-    log('Session not yet clickable or not found.');
-    return false;
+    log('Session became unclickable between the check and the click.');
+    return { success: false, needsReload: false };
   }
   log('Clicked the session.');
   await sleepMs(stepDelayMs);
@@ -22,7 +41,7 @@ async function attemptOnce(page, profile, log, stepDelayMs) {
   const seatMapReady = await seatFlow.waitForSeatMap(page);
   if (!seatMapReady) {
     log('Seat map did not render in time.');
-    return false;
+    return { success: false, needsReload: false };
   }
 
   const maxTickets = await seatFlow.getShowMaxTickets(page);
@@ -35,7 +54,7 @@ async function attemptOnce(page, profile, log, stepDelayMs) {
   const chosen = await seatFlow.selectSeats(page, profile.preferredSeats, profile.ticketCount);
   if (chosen.length < profile.ticketCount) {
     log(`Only found ${chosen.length}/${profile.ticketCount} free seats this attempt.`);
-    return false;
+    return { success: false, needsReload: false };
   }
   log(`Selected ${chosen.length} seat(s).`);
   await sleepMs(stepDelayMs);
@@ -43,7 +62,7 @@ async function attemptOnce(page, profile, log, stepDelayMs) {
   const reserved = await seatFlow.clickReserveAndContinue(page);
   if (!reserved) {
     log('Reserve button not available.');
-    return false;
+    return { success: false, needsReload: false };
   }
   log('Clicked reserve.');
   await sleepMs(stepDelayMs);
@@ -51,10 +70,10 @@ async function attemptOnce(page, profile, log, stepDelayMs) {
   const succeeded = await seatFlow.reservationSucceeded(page);
   if (!succeeded) {
     log('Reservation did not succeed this attempt.');
-    return false;
+    return { success: false, needsReload: false };
   }
 
-  return true;
+  return { success: true, needsReload: false };
 }
 
 async function main() {
@@ -119,13 +138,24 @@ async function main() {
     while (Date.now() < deadline && !success) {
       attemptNumber += 1;
       log(`Attempt #${attemptNumber}`);
+      let needsReload = false;
       try {
-        success = await attemptOnce(page, profile, log, stepDelayMs);
+        const result = await attemptOnce(page, profile, log, stepDelayMs);
+        success = result.success;
+        needsReload = result.needsReload;
       } catch (err) {
         log(`Attempt #${attemptNumber} error: ${err.message}`);
       }
       if (!success) {
-        await new Promise((resolve) => setTimeout(resolve, profile.retryIntervalMs));
+        if (needsReload) {
+          log('Reloading the show page to check for a fresh on-sale state...');
+          await page
+            .goto(profile.showUrl, { waitUntil: 'domcontentloaded' })
+            .catch((err) => log(`Reload failed: ${err.message}`));
+          await seatFlow.waitForSessionList(page).catch(() => {});
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, profile.retryIntervalMs));
+        }
       }
     }
 

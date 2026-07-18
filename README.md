@@ -13,6 +13,20 @@ then stops completely. **You always type your card number, expiry, and CVV
 yourself.** The tool never stores or touches payment credentials or your tiwall
 account password.
 
+### How the countdown actually works
+
+When you launch a profile with a future `targetDatetime`, the tool opens the
+browser immediately and pre-loads the show page right away (to warm up the
+connection), then just waits -- it doesn't sit there watching that same loaded
+page for the sale to open. At the target moment it does a **fresh reload**,
+because tiwall's "not yet on sale" sessions (`خرید از دوشنبه ساعت ۱۲:۰۰`) are
+rendered with a `disabled` class baked into the page at load time, with no
+visible client-side timer that removes it on its own -- so only a reload can
+reveal that a session just went on sale. If that first reload happens to land
+a moment before the real cutover, the tool keeps noticing the session is still
+marked `disabled` and **reloads again** every retry (not just re-clicking the
+same stale page) until either it opens or the retry window runs out.
+
 ## Setup
 
 ```bash
@@ -85,10 +99,14 @@ so a dedicated readiness wait was needed rather than a fixed delay; and
 `page.goto()`'s default wait condition ("load" -- every image/font/analytics
 script) made the first step look slow (~22s) even though the actual click
 logic was fast, fixed by waiting only for `"domcontentloaded"` plus an
-explicit wait for the session list's own heading text. If tiwall changes its
-markup in the future, re-run the same dry run and use the troubleshooting
-notes in `docs/superpowers/plans/2026-07-18-tiwall-ticket-autobuy.md`
-(Task 9) to diagnose.
+explicit wait for the session list's own heading text; and a not-yet-open
+session is marked with a `disabled` class rather than just being absent from
+the page, which the retry loop now checks for specifically so it reloads the
+page (instead of uselessly re-clicking the same stale DOM) when that's what's
+actually blocking it. If tiwall changes its markup in the future, re-run the
+same dry run and use the troubleshooting notes in
+`docs/superpowers/plans/2026-07-18-tiwall-ticket-autobuy.md` (Task 9) to
+diagnose.
 
 ## Known limitations
 
