@@ -1,17 +1,23 @@
 const path = require('node:path');
 const { chromium } = require('playwright');
-const { loadSettings, getProfile } = require('./lib/config');
+const { loadSettings, getProfile, getStepDelayMs } = require('./lib/config');
 const { waitUntil } = require('./lib/countdown');
 const { Logger } = require('./lib/logger');
 const { handoffAlert } = require('./lib/alert');
 const seatFlow = require('./lib/seatFlow');
 
-async function attemptOnce(page, profile, log) {
+function sleepMs(ms) {
+  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
+}
+
+async function attemptOnce(page, profile, log, stepDelayMs) {
   const sessionClicked = await seatFlow.clickSession(page, profile.sessionMatch);
   if (!sessionClicked) {
     log('Session not yet clickable or not found.');
     return false;
   }
+  log('Clicked the session.');
+  await sleepMs(stepDelayMs);
 
   const seatMapReady = await seatFlow.waitForSeatMap(page);
   if (!seatMapReady) {
@@ -31,12 +37,16 @@ async function attemptOnce(page, profile, log) {
     log(`Only found ${chosen.length}/${profile.ticketCount} free seats this attempt.`);
     return false;
   }
+  log(`Selected ${chosen.length} seat(s).`);
+  await sleepMs(stepDelayMs);
 
   const reserved = await seatFlow.clickReserveAndContinue(page);
   if (!reserved) {
     log('Reserve button not available.');
     return false;
   }
+  log('Clicked reserve.');
+  await sleepMs(stepDelayMs);
 
   const succeeded = await seatFlow.reservationSucceeded(page);
   if (!succeeded) {
@@ -57,6 +67,7 @@ async function main() {
   const settingsPath = path.join(__dirname, 'settings.json');
   const settings = loadSettings(settingsPath);
   const profile = getProfile(settings, profileName);
+  const stepDelayMs = getStepDelayMs(settings);
 
   const logsDir = path.join(__dirname, 'logs');
   const logger = new Logger(path.join(logsDir, `${profileName}-${Date.now()}.log`));
@@ -64,6 +75,9 @@ async function main() {
 
   log(`Starting run for profile "${profileName}"`);
   log(`Target datetime: ${profile.targetDatetime || '(none - running immediately)'}`);
+  if (stepDelayMs > 0) {
+    log(`Test mode: pausing ${stepDelayMs}ms after each step so you can watch.`);
+  }
 
   const userDataDir = path.join(__dirname, 'browser-profile');
   const context = await chromium.launchPersistentContext(userDataDir, { headless: false });
@@ -106,7 +120,7 @@ async function main() {
       attemptNumber += 1;
       log(`Attempt #${attemptNumber}`);
       try {
-        success = await attemptOnce(page, profile, log);
+        success = await attemptOnce(page, profile, log, stepDelayMs);
       } catch (err) {
         log(`Attempt #${attemptNumber} error: ${err.message}`);
       }
@@ -124,9 +138,11 @@ async function main() {
 
     log('Reservation succeeded. Filling buyer form.');
     await seatFlow.fillBuyerForm(page, profile.buyer);
+    await sleepMs(stepDelayMs);
 
     log('Submitting to bank payment page.');
     await seatFlow.clickPayAndHandoff(page);
+    await sleepMs(stepDelayMs);
 
     log('Choosing payment method on the bank page (card vs. wallet)...');
     const methodResult = await seatFlow.clickBankPaymentMethod(page);
