@@ -90,9 +90,10 @@ node recorder.js <name> <startUrl>
 
 A browser opens at `startUrl`. Click through the site manually -- pick your
 date/session, your seats, fill in your details -- at your own pace. A floating
-"Done — continue" button appears in the corner; click it once your selection
-is where you want it. The tool saves everything you clicked and typed as a new
-entry under `recordings.<name>` in `settings.json`.
+"Done — continue" button appears in the top-right corner; click it (or just
+press `Esc`) once your selection is where you want it. The tool saves
+everything you clicked and typed as a new entry under `recordings.<name>` in
+`settings.json`.
 
 **Hard safety rule, on every site, always:** password fields and any
 financial-account-like field (card number/CVV/expiry, IBAN, bank account,
