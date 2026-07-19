@@ -26,7 +26,11 @@ async function main() {
   log(`Target datetime: ${recording.targetDatetime || '(none - running immediately)'}`);
 
   const userDataDir = path.join(__dirname, 'browser-profile');
-  const context = await chromium.launchPersistentContext(userDataDir, { headless: false });
+  const context = await chromium.launchPersistentContext(userDataDir, {
+    headless: false,
+    viewport: null,
+    args: ['--start-maximized'],
+  });
   const page = context.pages()[0] || (await context.newPage());
 
   const startOrigin = new URL(recording.startUrl).origin;

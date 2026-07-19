@@ -17,7 +17,11 @@ async function main() {
   const settings = loadSettings(settingsPath);
 
   const userDataDir = path.join(__dirname, 'browser-profile');
-  const context = await chromium.launchPersistentContext(userDataDir, { headless: false });
+  const context = await chromium.launchPersistentContext(userDataDir, {
+    headless: false,
+    viewport: null,
+    args: ['--start-maximized'],
+  });
   const page = context.pages()[0] || (await context.newPage());
 
   const recorder = await prepareRecording(page);
