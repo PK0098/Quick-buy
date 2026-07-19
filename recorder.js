@@ -34,6 +34,11 @@ async function main() {
   const startOrigin = new URL(startUrl).origin;
   const { actions, stoppedEarly } = await recorder.waitForDone(startOrigin);
 
+  // Closing the browser here is the visible confirmation that clicking Done (or
+  // pressing Esc) actually registered -- otherwise the page just sits there
+  // unchanged and it's unclear anything happened at all.
+  await context.close();
+
   if (stoppedEarly) {
     console.log("Recording stopped early: left the starting site's domain.");
   }
