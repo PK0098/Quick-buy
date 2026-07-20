@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How tiwall-autobuy Works</title>
+<style>
+  :root {
+    --paper: #efe7d6;
+    --paper-dim: #e2d8c1;
+    --paper-dimmer: #d7cab0;
+    --ink: #201a12;
+    --ink-soft: #4c4232;
+    --curtain: #1f5c4f;
+    --curtain-strong: #16453b;
+    --brass: #9c711f;
+    --brass-bright: #b6862f;
+    --rust: #96371f;
+    --sage: #3c6b4a;
+    --line: rgba(32, 26, 18, 0.14);
+    --shadow: rgba(32, 26, 18, 0.16);
+
+    --font-display: "Big Caslon", "Book Antiqua", "Palatino Linotype", Georgia, serif;
+    --font-body: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+    --font-fa: "Vazirmatn", Tahoma, "Segoe UI", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14201c;
+      --paper-dim: #1b2a24;
+      --paper-dimmer: #22342c;
+      --ink: #ece3d2;
+      --ink-soft: #b9ad97;
+      --curtain: #3f9c85;
+      --curtain-strong: #62c2a8;
+      --brass: #d9ab5c;
+      --brass-bright: #eec281;
+      --rust: #d97557;
+      --sage: #7fae86;
+      --line: rgba(236, 227, 210, 0.14);
+      --shadow: rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14201c;
+    --paper-dim: #1b2a24;
+    --paper-dimmer: #22342c;
+    --ink: #ece3d2;
+    --ink-soft: #b9ad97;
+    --curtain: #3f9c85;
+    --curtain-strong: #62c2a8;
+    --brass: #d9ab5c;
+    --brass-bright: #eec281;
+    --rust: #d97557;
+    --sage: #7fae86;
+    --line: rgba(236, 227, 210, 0.14);
+    --shadow: rgba(0, 0, 0, 0.4);
+  }
+  :root[data-theme="light"] {
+    --paper: #efe7d6;
+    --paper-dim: #e2d8c1;
+    --paper-dimmer: #d7cab0;
+    --ink: #201a12;
+    --ink-soft: #4c4232;
+    --curtain: #1f5c4f;
+    --curtain-strong: #16453b;
+    --brass: #9c711f;
+    --brass-bright: #b6862f;
+    --rust: #96371f;
+    --sage: #3c6b4a;
+    --line: rgba(32, 26, 18, 0.14);
+    --shadow: rgba(32, 26, 18, 0.16);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 20px;
+    line-height: 1.65;
+  }
+
+  .wrap { max-width: 840px; margin: 0 auto; padding: 0 24px 96px; }
+
+  a { color: var(--curtain-strong); }
+
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 400; text-wrap: balance; color: var(--ink); }
+
+  code, .mono { font-family: var(--font-mono); }
+
+  /* ---------- Language toggle bar ---------- */
+  .lang-bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+  }
+  .lang-bar button {
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--paper-dim);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .lang-bar button:hover { background: var(--paper-dimmer); }
+  .lang-bar button:focus-visible { outline: 2px solid var(--curtain); outline-offset: 2px; }
+
+  [hidden] { display: none !important; }
+
+  /* RTL body content uses the Farsi face; code/numbers inside it stay LTR */
+  #lang-fa { font-family: var(--font-fa); }
+  #lang-fa h1, #lang-fa h2, #lang-fa h3, #lang-fa h4 { font-family: var(--font-fa); font-weight: 700; }
+  #lang-fa .mono, #lang-fa code, #lang-fa pre, #lang-fa time, #lang-fa .field {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
+  }
+  #lang-fa .settings-panel pre { display: block; }
+  #lang-fa .act-card .persian, #lang-fa .legend .fa { display: none; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    background:
+      radial-gradient(ellipse 120% 100% at 50% -10%, color-mix(in srgb, var(--curtain) 22%, transparent), transparent 60%),
+      var(--paper);
+    border-bottom: 1px solid var(--line);
+    padding: 72px 24px 56px;
+    text-align: center;
+  }
+  .eyebrow {
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brass);
+    font-weight: 600;
+  }
+  #lang-fa .eyebrow { font-family: var(--font-fa); letter-spacing: 0; }
+  .hero h1 {
+    font-size: clamp(2.6rem, 5.5vw, 3.6rem);
+    margin: 0.4em auto 0.3em;
+    max-width: 14ch;
+  }
+  #lang-fa .hero h1 { max-width: 18ch; }
+  .hero p.sub {
+    font-family: var(--font-body);
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 1.3rem;
+    max-width: 46ch;
+    margin: 0 auto;
+  }
+  #lang-fa .hero p.sub { font-family: var(--font-fa); font-style: normal; }
+  .curtain-rule {
+    width: 88px; height: 3px; margin: 26px auto 0;
+    background: linear-gradient(90deg, transparent, var(--curtain), transparent);
+  }
+
+  /* ---------- The one rule ---------- */
+  .rule-box {
+    margin: -34px auto 56px;
+    max-width: 640px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--rust);
+    border-radius: 6px;
+    padding: 22px 26px;
+    box-shadow: 0 8px 24px -12px var(--shadow);
+    position: relative;
+    z-index: 2;
+  }
+  #lang-fa .rule-box { border-left: none; border-right: 4px solid var(--rust); }
+  .rule-box .label {
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--rust);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 8px;
+  }
+  #lang-fa .rule-box .label { font-family: var(--font-fa); letter-spacing: 0; }
+  .rule-box p { margin: 0.4em 0 0; font-size: 1.08rem; }
+  .rule-box strong { color: var(--ink); }
+
+  section { padding: 60px 0; border-top: 1px solid var(--line); }
+  section:first-of-type { border-top: none; }
+
+  .act-label {
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--brass);
+    font-weight: 700;
+    margin: 0 0 8px;
+  }
+  #lang-fa .act-label { font-family: var(--font-fa); letter-spacing: 0; }
+  section h2 { font-size: clamp(1.8rem, 3.6vw, 2.3rem); margin: 0 0 0.5em; }
+  section > p.lead { color: var(--ink-soft); font-size: 1.18rem; max-width: 62ch; }
+
+  /* ---------- Four acts flow ---------- */
+  .acts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 32px;
+  }
+  @media (max-width: 700px) { .acts { grid-template-columns: 1fr; } }
+  .act-card {
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 20px 18px;
+    position: relative;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .act-card:hover { transform: translateY(-3px); box-shadow: 0 10px 22px -14px var(--shadow); }
+  .act-num {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: var(--curtain);
+    line-height: 1;
+  }
+  .act-card h3 {
+    font-family: var(--font-ui);
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 10px 0 6px;
+    text-transform: none;
+  }
+  #lang-fa .act-card h3 { font-family: var(--font-fa); }
+  .act-card p {
+    font-family: var(--font-ui);
+    font-size: 0.98rem;
+    color: var(--ink-soft);
+    margin: 0;
+    line-height: 1.55;
+  }
+  #lang-fa .act-card p { font-family: var(--font-fa); }
+  .act-card .persian {
+    display: inline-block;
+    margin-top: 10px;
+    font-family: var(--font-body);
+    font-size: 0.98rem;
+    color: var(--brass);
+    border-top: 1px dashed var(--line);
+    padding-top: 8px;
+    width: 100%;
+  }
+
+  .stop-card {
+    margin-top: 16px;
+    background: color-mix(in srgb, var(--rust) 10%, var(--paper-dim));
+    border: 1px solid color-mix(in srgb, var(--rust) 40%, var(--line));
+    border-radius: 8px;
+    padding: 18px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .stop-card .badge {
+    font-family: var(--font-ui);
+    font-weight: 800;
+    font-size: 0.82rem;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: var(--rust);
+    padding: 5px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  #lang-fa .stop-card .badge { font-family: var(--font-fa); letter-spacing: 0; }
+  .stop-card p { margin: 0; font-family: var(--font-ui); font-size: 1.04rem; color: var(--ink); }
+  #lang-fa .stop-card p { font-family: var(--font-fa); }
+
+  /* ---------- Seat map demo ---------- */
+  .seatmap-demo {
+    margin-top: 30px;
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .grid-chairs {
+    display: grid;
+    grid-template-columns: repeat(8, 22px);
+    grid-auto-rows: 22px;
+    gap: 4px;
+  }
+  .chip { width: 22px; height: 22px; border-radius: 4px; }
+  /* Exact colors read from tiwall's own live seatmap legend (.instance.normal/.selected/.reserved/.pending/.locked-chair) */
+  .chip.free { background: #3399dd; }
+  .chip.you { background: #cc0000; }
+  .chip.gone { background: #333333; }
+  .chip.pending { background: #ff9900; }
+  .chip.locked { background: #cbcbcb; }
+  .legend { font-family: var(--font-ui); font-size: 1rem; display: flex; flex-direction: column; gap: 10px; min-width: 240px; }
+  #lang-fa .legend { font-family: var(--font-fa); }
+  .legend .row { display: flex; align-items: center; gap: 10px; }
+  .legend .chip { flex: none; }
+  .legend .fa { color: var(--ink-soft); font-family: var(--font-body); font-size: 0.95rem; }
+
+  /* ---------- Checklist ---------- */
+  ol.checklist { list-style: none; margin: 28px 0 0; padding: 0; counter-reset: step; }
+  ol.checklist li {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  #lang-fa ol.checklist li { grid-template-columns: 1fr 34px; }
+  #lang-fa ol.checklist li > div { order: 1; }
+  #lang-fa ol.checklist li::before { order: 2; }
+  ol.checklist li:last-child { border-bottom: none; }
+  ol.checklist li::before {
+    content: counter(step);
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--brass);
+  }
+  ol.checklist code {
+    display: block;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 10px 14px;
+    margin-top: 8px;
+    font-size: 1rem;
+    overflow-x: auto;
+  }
+  ol.checklist p { margin: 0; font-size: 1.05rem; }
+  #lang-fa ol.checklist p { font-family: var(--font-fa); }
+
+  /* ---------- Settings annotated ---------- */
+  .settings-panel {
+    margin-top: 28px;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .settings-panel pre {
+    margin: 0;
+    padding: 22px 24px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.98rem;
+    line-height: 1.75;
+  }
+  .settings-panel .k { color: var(--curtain-strong); }
+  .settings-panel .s { color: var(--brass); }
+  .settings-panel .n { color: var(--sage); }
+  .settings-panel .c { color: var(--ink-soft); font-style: italic; }
+
+  .annot-list { margin-top: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .annot-list .item { display: grid; grid-template-columns: 150px 1fr; gap: 16px; font-family: var(--font-ui); font-size: 1.02rem; }
+  #lang-fa .annot-list .item { font-family: var(--font-fa); grid-template-columns: 1fr 150px; }
+  #lang-fa .annot-list .desc { order: 1; }
+  #lang-fa .annot-list .field { order: 2; text-align: left; }
+  .annot-list .field { font-family: var(--font-mono); color: var(--curtain-strong); font-weight: 600; }
+  .annot-list .desc { color: var(--ink-soft); line-height: 1.5; }
+  @media (max-width: 600px) {
+    .annot-list .item { grid-template-columns: 1fr; }
+    #lang-fa .annot-list .item { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- Run states ---------- */
+  .run-states { display: flex; flex-direction: column; gap: 0; margin-top: 28px; }
+  .run-states .beat {
+    display: grid;
+    grid-template-columns: 108px 1fr;
+    gap: 18px;
+    padding: 16px 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  #lang-fa .run-states .beat { grid-template-columns: 1fr 108px; }
+  #lang-fa .run-states .beat > div { order: 1; }
+  #lang-fa .run-states time { order: 2; text-align: left; }
+  .run-states .beat:last-child { border-bottom: none; }
+  .run-states time { font-family: var(--font-mono); font-size: 0.92rem; color: var(--brass); padding-top: 3px; }
+  .run-states h4 { margin: 0 0 4px; font-family: var(--font-ui); font-size: 1.08rem; color: var(--ink); }
+  #lang-fa .run-states h4 { font-family: var(--font-fa); }
+  .run-states p { margin: 0; font-size: 1.02rem; color: var(--ink-soft); line-height: 1.5; }
+  #lang-fa .run-states p { font-family: var(--font-fa); }
+
+  /* ---------- Stats row ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-top: 20px;
+  }
+  @media (max-width: 620px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat {
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat .num {
+    font-family: var(--font-display);
+    font-size: 1.9rem;
+    color: var(--curtain);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .cap {
+    font-family: var(--font-ui);
+    font-size: 0.84rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  #lang-fa .stat .cap { font-family: var(--font-fa); letter-spacing: 0; text-transform: none; }
+
+  /* ---------- Troubleshoot accordion ---------- */
+  details.q {
+    border-bottom: 1px solid var(--line);
+    padding: 14px 0;
+  }
+  details.q summary {
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 1.1rem;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #lang-fa details.q summary { font-family: var(--font-fa); }
+  details.q summary::-webkit-details-marker { display: none; }
+  details.q summary::after {
+    content: "+";
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--brass);
+    transition: transform 0.15s ease;
+  }
+  details.q[open] summary::after { transform: rotate(45deg); }
+  details.q .a { margin-top: 12px; color: var(--ink-soft); font-size: 1.05rem; line-height: 1.55; }
+  #lang-fa details.q .a { font-family: var(--font-fa); }
+  details.q .a code { background: var(--paper-dim); padding: 2px 7px; border-radius: 4px; font-size: 0.92em; }
+
+  footer {
+    padding: 40px 24px 60px;
+    text-align: center;
+    font-family: var(--font-ui);
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+  }
+  #lang-fa footer { font-family: var(--font-fa); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .act-card { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="lang-bar">
+  <button type="button" id="lang-toggle">فارسی</button>
+</div>
+
+<div id="lang-en">
+<div class="hero">
+  <p class="eyebrow">A Tutorial &amp; Introduction</p>
+  <h1>How tiwall&#8209;autobuy Works</h1>
+  <p class="sub">A patient walkthrough for someone opening this tool for the very first time.</p>
+  <div class="curtain-rule"></div>
+</div>
+
+<div class="wrap">
+
+  <div class="rule-box">
+    <span class="label">Before anything else &mdash; the one rule</span>
+    <p>This tool will select seats, hold a reservation, and fill in your name and phone number for you. <strong>It will never type your card number, expiry date, or your tiwall password.</strong> The moment it reaches the bank's payment page, it stops and waits for you. That boundary isn't a setting you can turn off &mdash; it's built in.</p>
+  </div>
+
+  <section>
+    <p class="act-label">The problem this solves</p>
+    <h2>Tickets that vanish in seconds</h2>
+    <p class="lead">
+      Popular tiwall.com shows list an exact on-sale moment &mdash; something like
+      <span class="mono">&laquo;خرید از دوشنبه ساعت ۱۲:۰۰&raquo;</span> (&ldquo;on sale Monday at 12:00&rdquo;).
+      When that clock strikes, every seat can be gone within moments. Clicking fast enough,
+      by hand, on a page you have to keep refreshing, is exactly the kind of task a script does
+      better than a person watching a clock. This tool does the fast, mechanical part &mdash;
+      finding the session, clicking a seat, filling your details &mdash; and stops the instant
+      real money would change hands.
+    </p>
+  </section>
+
+  <section>
+    <p class="act-label">The show, in four acts</p>
+    <h2>tiwall's own checkout, staged</h2>
+    <p class="lead">tiwall's checkout is already a four&#8209;step play &mdash; this tool simply performs three of the four acts for you, then hands you the stage.</p>
+
+    <div class="acts">
+      <div class="act-card">
+        <div class="act-num">I</div>
+        <h3>Choose the session</h3>
+        <p>Finds the exact date and time you configured, the moment it opens for sale.</p>
+        <span class="persian">انتخاب سانس</span>
+      </div>
+      <div class="act-card">
+        <div class="act-num">II</div>
+        <h3>Choose seats</h3>
+        <p>Clicks your preferred seats. If one's already taken, it quietly falls back to the next best free seat.</p>
+        <span class="persian">انتخاب صندلی</span>
+      </div>
+      <div class="act-card">
+        <div class="act-num">III</div>
+        <h3>Reserve &amp; pay</h3>
+        <p>Places your 15&#8209;minute hold, fills in your name/phone/email, clicks through to the bank, picks the card payment method there, then stops.</p>
+        <span class="persian">رزرو و پرداخت</span>
+      </div>
+      <div class="act-card">
+        <div class="act-num">IV</div>
+        <h3>Get your ticket</h3>
+        <p>Happens only after <em>you</em> pay by hand. tiwall emails your ticket once the bank confirms.</p>
+        <span class="persian">دریافت بلیت</span>
+      </div>
+    </div>
+
+    <div class="stop-card">
+      <span class="badge">STOP HERE</span>
+      <p>Halfway through Act III, right after clicking &laquo;پرداخت&raquo; (Pay), the tool reaches your bank's own payment page &mdash; and simply stops. A banner prints, your terminal beeps, and the browser window sits open waiting. Typing your card number, expiry, and CVV from that point on is entirely up to you.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="act-label">Act II, up close</p>
+    <h2>How &ldquo;pick a seat&rdquo; actually works</h2>
+    <p class="lead">
+      tiwall shows every seat in a small colored grid. The tool reads that same grid &mdash;
+      it never guesses. Here's the legend it's watching for:
+    </p>
+    <div class="seatmap-demo">
+      <div class="grid-chairs" aria-hidden="true">
+        <div class="chip gone"></div><div class="chip gone"></div><div class="chip locked"></div><div class="chip free"></div><div class="chip free"></div><div class="chip you"></div><div class="chip pending"></div><div class="chip free"></div>
+        <div class="chip gone"></div><div class="chip gone"></div><div class="chip free"></div><div class="chip free"></div><div class="chip free"></div><div class="chip free"></div><div class="chip gone"></div><div class="chip gone"></div>
+        <div class="chip free"></div><div class="chip free"></div><div class="chip free"></div><div class="chip pending"></div><div class="chip free"></div><div class="chip free"></div><div class="chip free"></div><div class="chip gone"></div>
+      </div>
+      <div class="legend">
+        <div class="row"><div class="chip free"></div> Free &mdash; fair game <span class="fa">آزاد</span></div>
+        <div class="row"><div class="chip you"></div> The seat it picked for you <span class="fa">انتخاب شما</span></div>
+        <div class="row"><div class="chip pending"></div> Someone else is mid&#8209;checkout <span class="fa">منتظر پرداخت</span></div>
+        <div class="row"><div class="chip gone"></div> Already sold <span class="fa">خریداری‌شده</span></div>
+        <div class="row"><div class="chip locked"></div> Not purchasable (e.g. companion seating) <span class="fa">خرید ناپذیر</span></div>
+      </div>
+    </div>
+    <p class="lead" style="margin-top: 20px;">
+      You give it a wish&#8209;list of seats in order (say, row 8, seats 21 through 17). It tries
+      each one; the moment it hits a seat that's gone, it moves to the next free seat on the list
+      instead of giving up.
+    </p>
+  </section>
+
+  <section>
+    <p class="act-label">Before the curtain rises</p>
+    <h2>One-time setup</h2>
+    <p class="lead">Three commands, run once, from inside the <code class="mono">tiwall-autobuy</code> folder.</p>
+    <ol class="checklist">
+      <li>
+        <div>
+          <p>Install the tool's dependencies.</p>
+          <code>npm install</code>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p>Download the browser it drives (a real, visible Chromium window &mdash; not a hidden one).</p>
+          <code>npx playwright install chromium</code>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p>Make your own personal settings file from the template.</p>
+          <code>cp settings.example.json settings.json</code>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <p class="act-label">Your settings, explained</p>
+    <h2>Filling in <span class="mono">settings.json</span></h2>
+    <p class="lead">This is the only file you edit. Nothing in it can ever hold a card number &mdash; there isn't a field for one.</p>
+
+    <div class="settings-panel">
+<pre><span class="c">// settings.json</span>
+{
+  <span class="k">"testMode"</span>: <span class="n">false</span>,
+  <span class="k">"testModeDelayMs"</span>: <span class="n">2000</span>,
+  <span class="k">"buyer"</span>: {
+    <span class="k">"name"</span>: <span class="s">"Pouya Karimi"</span>,
+    <span class="k">"phone"</span>: <span class="s">"0912xxxxxxx"</span>,
+    <span class="k">"email"</span>: <span class="s">"you@example.com"</span>
+  },
+  <span class="k">"profiles"</span>: {
+    <span class="k">"vanya"</span>: {
+      <span class="k">"showUrl"</span>: <span class="s">"https://www.tiwall.com/s/uncle.vanya"</span>,
+      <span class="k">"sessionMatch"</span>: <span class="s">"چهارشنبه ۰۷ مرداد"</span>,
+      <span class="k">"targetDatetime"</span>: <span class="s">"2026-08-04T12:00:00+03:30"</span>,
+      <span class="k">"ticketCount"</span>: <span class="n">5</span>,
+      <span class="k">"preferredSeats"</span>: [
+        { <span class="k">"row"</span>: <span class="n">8</span>, <span class="k">"seat"</span>: <span class="n">21</span> },
+        { <span class="k">"row"</span>: <span class="n">8</span>, <span class="k">"seat"</span>: <span class="n">20</span> }
+      ],
+      <span class="k">"retryWindowSeconds"</span>: <span class="n">10</span>,
+      <span class="k">"retryIntervalMs"</span>: <span class="n">250</span>
+    }
+  }
+}</pre>
+    </div>
+
+    <div class="annot-list">
+      <div class="item"><span class="field">testMode</span><span class="desc"><code>true</code> pauses after every step so you can watch each one happen; <code>false</code> runs at full speed. Use <code>testModeDelayMs</code> to change the pause length (defaults to 2000ms).</span></div>
+      <div class="item"><span class="field">buyer</span><span class="desc">Your real name, phone, and email &mdash; goes straight into tiwall's reservation form.</span></div>
+      <div class="item"><span class="field">profiles</span><span class="desc">One entry per show you're tracking. Give each one a name you'll recognize, like <code>vanya</code>.</span></div>
+      <div class="item"><span class="field">sessionMatch</span><span class="desc">A snippet of text copied straight from the show's session list, so the tool knows which date/time row to click.</span></div>
+      <div class="item"><span class="field">targetDatetime</span><span class="desc">The exact moment sales open. Set to <code>null</code> to run immediately instead &mdash; handy for testing.</span></div>
+      <div class="item"><span class="field">preferredSeats</span><span class="desc">Your wish list, in order. Leave it empty <code>[]</code> to just grab the cheapest free seats.</span></div>
+      <div class="item"><span class="field">retryWindowSeconds</span><span class="desc">How long, in total, the tool keeps trying after go-time before giving up and alerting you.</span></div>
+      <div class="item"><span class="field">retryIntervalMs</span><span class="desc">How long it waits between quick re-checks. If the session turns out to just not be on sale yet, it reloads the page instead of waiting this long.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="act-label">Opening night</p>
+    <h2>Running it</h2>
+    <p class="lead">One command, naming which profile to run.</p>
+    <ol class="checklist">
+      <li>
+        <div>
+          <p>Dry run, any time, against a show that's already on sale &mdash; good for a first look.</p>
+          <code>node run.js murakami</code>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p>The real thing &mdash; it will simply wait until your configured moment arrives.</p>
+          <code>node run.js vanya</code>
+        </div>
+      </li>
+    </ol>
+
+    <div class="run-states">
+      <div class="beat">
+        <time>t&minus;∞</time>
+        <div><h4>A window opens</h4><p>A real, visible Chrome window launches. You can watch every click happen.</p></div>
+      </div>
+      <div class="beat">
+        <time>waiting&hellip;</time>
+        <div><h4>The countdown</h4><p>If you gave it a future time, it simply sits, checking the clock, until that second arrives.</p></div>
+      </div>
+      <div class="beat">
+        <time>go</time>
+        <div><h4>The rush</h4><p>Session, seats, reservation &mdash; attempted repeatedly for a few seconds in case the very first click is a beat too early.</p></div>
+      </div>
+      <div class="beat">
+        <time>&#9835;&#9835;&#9835;</time>
+        <div><h4>The beep</h4><p>Your terminal beeps and prints a banner the instant it reaches the bank page. That's your cue &mdash; take the keyboard.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="act-label">By the numbers</p>
+    <h2>What's actually inside</h2>
+    <div class="stats">
+      <div class="stat"><div class="num">4</div><div class="cap">checkout steps automated to three</div></div>
+      <div class="stat"><div class="num">0</div><div class="cap">card or password fields, anywhere</div></div>
+      <div class="stat"><div class="num">15</div><div class="cap">minutes your hold stays valid</div></div>
+      <div class="stat"><div class="num">26</div><div class="cap">automated tests, all passing</div></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="act-label">Intermission</p>
+    <h2>If something looks off</h2>
+
+    <details class="q">
+      <summary>It says &ldquo;NO SEATS RESERVED&rdquo;</summary>
+      <div class="a">Every seat in your wish list, and every fallback, was gone before the tool could grab one &mdash; it doesn't invent seats that aren't there. The browser window stays open so you can look at the seat map yourself and try manually.</div>
+    </details>
+    <details class="q">
+      <summary>Can I stop it partway through?</summary>
+      <div class="a">Yes. Closing the terminal or the browser window at any point is safe. If it already placed a reservation you don't want, click tiwall's own <code>لغو رزرو</code> (cancel reservation) button in that same window &mdash; otherwise the hold simply expires on its own after 15 minutes.</div>
+    </details>
+    <details class="q">
+      <summary>Do I need to log in first?</summary>
+      <div class="a">No &mdash; tiwall lets you reserve and check out as a guest. If you'd still like to stay signed in for loyalty perks, log in by hand once in the tool's browser window; it reuses that session but never touches your password.</div>
+    </details>
+    <details class="q">
+      <summary>What if tiwall shows a CAPTCHA or security check?</summary>
+      <div class="a">The tool won't attempt to solve it. It will stop and wait &mdash; you'll need to clear the check yourself in the open window, same as the payment step.</div>
+    </details>
+    <details class="q">
+      <summary>Does the "buy from Monday 12:00" button just turn on by itself?</summary>
+      <div class="a">No &mdash; tiwall renders that as disabled directly in the page, and nothing on the page seems to flip it back on live. The tool accounts for this itself: it reloads the page at go-time, and keeps reloading (not just re-clicking) for as long as the session still comes back marked not-yet-open, in case its first reload landed a moment too early.</div>
+    </details>
+  </section>
+
+</div>
+
+<footer>
+  tiwall&#8209;autobuy &middot; gets you to the bank page, never past it.
+</footer>
+</div>
+
+<div id="lang-fa" lang="fa" dir="rtl" hidden>
+<div class="hero">
+  <p class="eyebrow">آموزش و معرفی</p>
+  <h1>تیوال&#8209;اتوبای چطور کار می‌کند</h1>
+  <p class="sub">توضیحی گام‌به‌گام برای کسی که این ابزار را برای اولین‌بار باز می‌کند.</p>
+  <div class="curtain-rule"></div>
+</div>
+
+<div class="wrap">
+
+  <div class="rule-box">
+    <span class="label">پیش از هر چیز &mdash; تنها قانون</span>
+    <p>این ابزار برایتان صندلی انتخاب می‌کند، یک رزرو موقت ثبت می‌کند و نام و شماره تلفن شما را پر می‌کند. <strong>اما هرگز شماره کارت، تاریخ انقضا یا رمز عبور حساب تیوال شما را وارد نمی‌کند.</strong> به‌محض رسیدن به صفحه پرداخت بانک، متوقف می‌شود و منتظر شما می‌ماند. این محدودیت یک تنظیم قابل خاموش‌کردن نیست &mdash; در خودِ ابزار جاسازی شده است.</p>
+  </div>
+
+  <section>
+    <p class="act-label">مشکلی که این ابزار حل می‌کند</p>
+    <h2>بلیت‌هایی که در چند ثانیه ناپدید می‌شوند</h2>
+    <p class="lead">
+      نمایش‌های پرطرفدار تیوال یک لحظه دقیق برای آغاز فروش اعلام می‌کنند &mdash; چیزی شبیه
+      <span class="mono">&laquo;خرید از دوشنبه ساعت ۱۲:۰۰&raquo;</span>.
+      وقتی آن لحظه فرا برسد، همه صندلی‌ها می‌توانند در عرض چند ثانیه تمام شوند. کلیک‌کردنِ به‌موقع،
+      با دست، روی صفحه‌ای که باید مدام تازه‌سازی شود، دقیقاً همان کاری است که یک اسکریپت بهتر از
+      یک انسانِ نگاه‌کننده به ساعت انجام می‌دهد. این ابزار بخش سریع و مکانیکی کار &mdash; پیدا کردن سانس،
+      کلیک روی صندلی، پر کردن اطلاعات &mdash; را انجام می‌دهد و دقیقاً همان لحظه‌ای که پول واقعی در
+      میان است، متوقف می‌شود.
+    </p>
+  </section>
+
+  <section>
+    <p class="act-label">نمایش، در چهار پرده</p>
+    <h2>روند خرید تیوال، صحنه‌بندی‌شده</h2>
+    <p class="lead">روند خرید تیوال خودش یک نمایش چهار مرحله‌ای است &mdash; این ابزار فقط سه پرده از آن را برایتان اجرا می‌کند و بعد صحنه را به شما می‌سپارد.</p>
+
+    <div class="acts">
+      <div class="act-card">
+        <div class="act-num">I</div>
+        <h3>انتخاب سانس</h3>
+        <p>تاریخ و ساعتی را که تنظیم کرده‌اید، دقیقاً همان لحظه‌ای که برای فروش باز می‌شود، پیدا می‌کند.</p>
+      </div>
+      <div class="act-card">
+        <div class="act-num">II</div>
+        <h3>انتخاب صندلی</h3>
+        <p>صندلی‌های موردنظرتان را کلیک می‌کند. اگر یکی گرفته شده باشد، بی‌سروصدا به بهترین صندلی آزاد بعدی می‌رود.</p>
+      </div>
+      <div class="act-card">
+        <div class="act-num">III</div>
+        <h3>رزرو و پرداخت</h3>
+        <p>رزرو ۱۵ دقیقه‌ای شما را ثبت می‌کند، نام/تلفن/ایمیل را پر می‌کند، به صفحه بانک می‌رود، روش پرداخت با کارت را انتخاب می‌کند و سپس متوقف می‌شود.</p>
+      </div>
+      <div class="act-card">
+        <div class="act-num">IV</div>
+        <h3>دریافت بلیت</h3>
+        <p>فقط پس از اینکه خودتان با دست پرداخت را انجام دهید اتفاق می‌افتد. تیوال پس از تایید بانک، بلیت شما را ایمیل می‌کند.</p>
+      </div>
+    </div>
+
+    <div class="stop-card">
+      <span class="badge">همین‌جا متوقف می‌شود</span>
+      <p>در میانه پرده سوم، درست پس از کلیک روی «پرداخت»، ابزار به صفحه پرداخت بانک شما می‌رسد &mdash; و دقیقاً همان‌جا متوقف می‌شود. بنری چاپ می‌شود، ترمینال شما بوق می‌زند و پنجره مرورگر باز می‌ماند و منتظر شما است. تایپ‌کردن شماره کارت، تاریخ انقضا و CVV از این لحظه به بعد، کاملاً بر عهده خودتان است.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="act-label">پرده دوم، از نزدیک</p>
+    <h2>«انتخاب صندلی» واقعاً چطور کار می‌کند</h2>
+    <p class="lead">
+      تیوال هر صندلی را در یک شبکه رنگی کوچک نشان می‌دهد. ابزار همان شبکه را می‌خواند &mdash;
+      هرگز حدس نمی‌زند. این هم راهنمای رنگ‌هایی که دنبالشان می‌گردد:
+    </p>
+    <div class="seatmap-demo">
+      <div class="grid-chairs" aria-hidden="true">
+        <div class="chip gone"></div><div class="chip gone"></div><div class="chip locked"></div><div class="chip free"></div><div class="chip free"></div><div class="chip you"></div><div class="chip pending"></div><div class="chip free"></div>
+        <div class="chip gone"></div><div class="chip gone"></div><div class="chip free"></div><div class="chip free"></div><div class="chip free"></div><div class="chip free"></div><div class="chip gone"></div><div class="chip gone"></div>
+        <div class="chip free"></div><div class="chip free"></div><div class="chip free"></div><div class="chip pending"></div><div class="chip free"></div><div class="chip free"></div><div class="chip free"></div><div class="chip gone"></div>
+      </div>
+      <div class="legend">
+        <div class="row"><div class="chip free"></div> آزاد &mdash; در دسترس همه</div>
+        <div class="row"><div class="chip you"></div> صندلی‌ای که برایتان انتخاب شد</div>
+        <div class="row"><div class="chip pending"></div> شخص دیگری در حال پرداخت است</div>
+        <div class="row"><div class="chip gone"></div> قبلاً فروخته شده</div>
+        <div class="row"><div class="chip locked"></div> غیرقابل خرید (مثلاً صندلی همراه)</div>
+      </div>
+    </div>
+    <p class="lead" style="margin-top: 20px;">
+      شما یک فهرست آرزوی صندلی به‌ترتیب می‌دهید (مثلاً ردیف ۸، صندلی‌های ۲۱ تا ۱۷). ابزار هرکدام را
+      امتحان می‌کند؛ به‌محض رسیدن به صندلی‌ای که گرفته شده، به‌جای تسلیم‌شدن، سراغ صندلی آزاد بعدی
+      در فهرست می‌رود.
+    </p>
+  </section>
+
+  <section>
+    <p class="act-label">پیش از بالا رفتن پرده</p>
+    <h2>راه‌اندازی یک‌باره</h2>
+    <p class="lead">سه دستور، فقط یک‌بار، از داخل پوشه <code class="mono">tiwall-autobuy</code> اجرا کنید.</p>
+    <ol class="checklist">
+      <li>
+        <div>
+          <p>وابستگی‌های ابزار را نصب کنید.</p>
+          <code>npm install</code>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p>مرورگری که ابزار با آن کار می‌کند را دانلود کنید (یک پنجره کرومیوم واقعی و قابل‌مشاهده &mdash; نه مخفی).</p>
+          <code>npx playwright install chromium</code>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p>فایل تنظیمات شخصی خودتان را از روی نمونه بسازید.</p>
+          <code>cp settings.example.json settings.json</code>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <p class="act-label">تنظیمات شما، توضیح داده‌شده</p>
+    <h2>پر کردن <span class="mono">settings.json</span></h2>
+    <p class="lead">این تنها فایلی است که ویرایش می‌کنید. هیچ‌چیز در آن هرگز نمی‌تواند شماره کارت نگه دارد &mdash; اصلاً چنین فیلدی وجود ندارد.</p>
+
+    <div class="settings-panel">
+<pre><span class="c">// settings.json</span>
+{
+  <span class="k">"testMode"</span>: <span class="n">false</span>,
+  <span class="k">"testModeDelayMs"</span>: <span class="n">2000</span>,
+  <span class="k">"buyer"</span>: {
+    <span class="k">"name"</span>: <span class="s">"Pouya Karimi"</span>,
+    <span class="k">"phone"</span>: <span class="s">"0912xxxxxxx"</span>,
+    <span class="k">"email"</span>: <span class="s">"you@example.com"</span>
+  },
+  <span class="k">"profiles"</span>: {
+    <span class="k">"vanya"</span>: {
+      <span class="k">"showUrl"</span>: <span class="s">"https://www.tiwall.com/s/uncle.vanya"</span>,
+      <span class="k">"sessionMatch"</span>: <span class="s">"چهارشنبه ۰۷ مرداد"</span>,
+      <span class="k">"targetDatetime"</span>: <span class="s">"2026-08-04T12:00:00+03:30"</span>,
+      <span class="k">"ticketCount"</span>: <span class="n">5</span>,
+      <span class="k">"preferredSeats"</span>: [
+        { <span class="k">"row"</span>: <span class="n">8</span>, <span class="k">"seat"</span>: <span class="n">21</span> },
+        { <span class="k">"row"</span>: <span class="n">8</span>, <span class="k">"seat"</span>: <span class="n">20</span> }
+      ],
+      <span class="k">"retryWindowSeconds"</span>: <span class="n">10</span>,
+      <span class="k">"retryIntervalMs"</span>: <span class="n">250</span>
+    }
+  }
+}</pre>
+    </div>
+
+    <div class="annot-list">
+      <div class="item"><span class="field">testMode</span><span class="desc"><code>true</code> پس از هر مرحله مکث می‌کند تا هرکدام را تماشا کنید؛ <code>false</code> با سرعت کامل اجرا می‌شود. با <code>testModeDelayMs</code> طول مکث را تغییر دهید (پیش‌فرض ۲۰۰۰ میلی‌ثانیه).</span></div>
+      <div class="item"><span class="field">buyer</span><span class="desc">نام، تلفن و ایمیل واقعی شما &mdash; مستقیم در فرم رزرو تیوال وارد می‌شود.</span></div>
+      <div class="item"><span class="field">profiles</span><span class="desc">یک ورودی برای هر نمایشی که دنبال می‌کنید. به هرکدام نامی بدهید که برایتان قابل‌تشخیص باشد، مثل <code>vanya</code>.</span></div>
+      <div class="item"><span class="field">sessionMatch</span><span class="desc">بخشی از متن که مستقیم از فهرست سانس‌های صفحه نمایش کپی شده، تا ابزار بداند کدام ردیف تاریخ/ساعت را کلیک کند.</span></div>
+      <div class="item"><span class="field">targetDatetime</span><span class="desc">لحظه دقیق باز شدن فروش. برای اجرای فوری (مناسب تست) آن را <code>null</code> بگذارید.</span></div>
+      <div class="item"><span class="field">preferredSeats</span><span class="desc">فهرست آرزوی شما، به‌ترتیب. برای گرفتن ارزان‌ترین صندلی‌های آزاد، آن را <code>[]</code> خالی بگذارید.</span></div>
+      <div class="item"><span class="field">retryWindowSeconds</span><span class="desc">مجموع زمانی که ابزار پس از رسیدن لحظه، پیش از تسلیم‌شدن و اطلاع‌دادن به شما، تلاش می‌کند.</span></div>
+      <div class="item"><span class="field">retryIntervalMs</span><span class="desc">مدت انتظار بین بازبینی‌های سریع. اگر معلوم شود سانس هنوز باز نشده، به‌جای این انتظار، صفحه را دوباره بارگذاری می‌کند.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="act-label">شب افتتاحیه</p>
+    <h2>اجرای آن</h2>
+    <p class="lead">یک دستور، با نام پروفایلی که می‌خواهید اجرا شود.</p>
+    <ol class="checklist">
+      <li>
+        <div>
+          <p>اجرای آزمایشی، هر زمان، روی نمایشی که از قبل فروشش باز است &mdash; مناسب برای اولین نگاه.</p>
+          <code>node run.js murakami</code>
+        </div>
+      </li>
+      <li>
+        <div>
+          <p>کار اصلی &mdash; به‌سادگی منتظر می‌ماند تا لحظه تنظیم‌شده شما فرا برسد.</p>
+          <code>node run.js vanya</code>
+        </div>
+      </li>
+    </ol>
+
+    <div class="run-states">
+      <div class="beat">
+        <time>t&minus;∞</time>
+        <div><h4>یک پنجره باز می‌شود</h4><p>یک پنجره کروم واقعی و قابل‌مشاهده اجرا می‌شود. می‌توانید هر کلیک را تماشا کنید.</p></div>
+      </div>
+      <div class="beat">
+        <time>waiting&hellip;</time>
+        <div><h4>شمارش معکوس</h4><p>اگر زمانی در آینده داده باشید، فقط می‌نشیند و ساعت را چک می‌کند تا آن ثانیه برسد.</p></div>
+      </div>
+      <div class="beat">
+        <time>go</time>
+        <div><h4>هجوم</h4><p>سانس، صندلی، رزرو &mdash; چند ثانیه پی‌درپی تلاش می‌شود تا اگر همان کلیک اول کمی زودهنگام بود، جبران شود.</p></div>
+      </div>
+      <div class="beat">
+        <time>&#9835;&#9835;&#9835;</time>
+        <div><h4>بوق</h4><p>به‌محض رسیدن به صفحه بانک، ترمینال شما بوق می‌زند و بنری چاپ می‌کند. این نشانه شماست &mdash; کیبورد را در دست بگیرید.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="act-label">با عدد و رقم</p>
+    <h2>واقعاً داخلش چیست</h2>
+    <div class="stats">
+      <div class="stat"><div class="num">4</div><div class="cap">مرحله خرید که به سه مرحله خودکار شده</div></div>
+      <div class="stat"><div class="num">0</div><div class="cap">فیلد کارت یا رمز عبور، در هیچ‌کجا</div></div>
+      <div class="stat"><div class="num">15</div><div class="cap">دقیقه اعتبار رزرو شما</div></div>
+      <div class="stat"><div class="num">26</div><div class="cap">تست خودکار، همگی موفق</div></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="act-label">میان‌پرده</p>
+    <h2>اگر چیزی درست به‌نظر نرسید</h2>
+
+    <details class="q">
+      <summary>می‌نویسد «هیچ صندلی رزرو نشد»</summary>
+      <div class="a">همه صندلی‌های فهرست آرزوی شما، و همه جایگزین‌ها، پیش از آنکه ابزار بتواند یکی را بگیرد، گرفته شده بودند &mdash; ابزار صندلی‌ای که وجود ندارد را اختراع نمی‌کند. پنجره مرورگر باز می‌ماند تا خودتان نقشه صندلی‌ها را ببینید و دستی امتحان کنید.</div>
+    </details>
+    <details class="q">
+      <summary>می‌توانم وسط کار متوقفش کنم؟</summary>
+      <div class="a">بله. بستن ترمینال یا پنجره مرورگر در هر لحظه‌ای امن است. اگر از قبل رزروی ثبت کرده که نمی‌خواهید، دکمه <code>لغو رزرو</code> خود تیوال را در همان پنجره بزنید &mdash; در غیر این صورت رزرو پس از ۱۵ دقیقه خودش منقضی می‌شود.</div>
+    </details>
+    <details class="q">
+      <summary>اول باید وارد حساب شوم؟</summary>
+      <div class="a">نه &mdash; تیوال اجازه رزرو و پرداخت به‌صورت مهمان را می‌دهد. اگر همچنان می‌خواهید برای مزایای عضویت وارد باشید، یک‌بار خودتان با دست در همان پنجره مرورگر ابزار وارد شوید؛ ابزار همان نشست را دوباره استفاده می‌کند اما هرگز به رمز عبورتان دست نمی‌زند.</div>
+    </details>
+    <details class="q">
+      <summary>اگر تیوال کپچا یا بررسی امنیتی نشان دهد چه؟</summary>
+      <div class="a">ابزار تلاشی برای حل آن نمی‌کند. متوقف می‌شود و منتظر می‌ماند &mdash; باید خودتان آن بررسی را در همان پنجره باز، درست مثل مرحله پرداخت، پشت سر بگذارید.</div>
+    </details>
+    <details class="q">
+      <summary>دکمه «خرید از دوشنبه ساعت ۱۲:۰۰» خودش روشن می‌شود؟</summary>
+      <div class="a">نه &mdash; تیوال آن را مستقیم در صفحه به‌صورت غیرفعال رندر می‌کند، و به‌نظر نمی‌رسد چیزی در صفحه آن را به‌طور زنده روشن کند. ابزار خودش این را در نظر گرفته: در لحظه صفر صفحه را دوباره بارگذاری می‌کند، و تا زمانی که سانس همچنان «هنوز باز نشده» برگردد، به‌جای فقط کلیک دوباره، صفحه را بارها دوباره بارگذاری می‌کند &mdash; برای حالتی که بارگذاری اول کمی زودهنگام بوده باشد.</div>
+    </details>
+  </section>
+
+</div>
+
+<footer>
+  تیوال&#8209;اتوبای &middot; شما را تا صفحه بانک می‌رساند، هرگز فراتر از آن.
+</footer>
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('lang-toggle');
+    var en = document.getElementById('lang-en');
+    var fa = document.getElementById('lang-fa');
+
+    function setLang(lang) {
+      if (lang === 'fa') {
+        en.hidden = true;
+        fa.hidden = false;
+        document.documentElement.lang = 'fa';
+        document.documentElement.dir = 'rtl';
+        btn.textContent = 'English';
+      } else {
+        fa.hidden = true;
+        en.hidden = false;
+        document.documentElement.lang = 'en';
+        document.documentElement.dir = 'ltr';
+        btn.textContent = 'فارسی';
+      }
+      try { localStorage.setItem('tiwall-manual-lang', lang); } catch (e) {}
+    }
+
+    btn.addEventListener('click', function () {
+      setLang(fa.hidden ? 'fa' : 'en');
+    });
+
+    var saved = 'en';
+    try { saved = localStorage.getItem('tiwall-manual-lang') || 'en'; } catch (e) {}
+    setLang(saved);
+  })();
+</script>
+
+</body>
+</html>
