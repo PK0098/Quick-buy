@@ -16,7 +16,7 @@ async function attemptOnce(page, profile, log, stepDelayMs) {
   // that same DOM can never succeed, only a fresh reload can. "not found at
   // all" more likely just means the session list is still hydrating, which a
   // quick re-check (no reload) can catch a moment later.
-  const state = await seatFlow.getSessionState(page, profile.sessionMatch);
+  const state = await seatFlow.getSessionState(page, profile.sessionMatch, profile.sessionTime);
   if (!state.found) {
     log('Session not found on the page yet.');
     return { success: false, needsReload: false };
@@ -30,7 +30,7 @@ async function attemptOnce(page, profile, log, stepDelayMs) {
     return { success: false, needsReload: true };
   }
 
-  const sessionClicked = await seatFlow.clickSession(page, profile.sessionMatch);
+  const sessionClicked = await seatFlow.clickSession(page, profile.sessionMatch, profile.sessionTime);
   if (!sessionClicked) {
     log('Session became unclickable between the check and the click.');
     return { success: false, needsReload: false };

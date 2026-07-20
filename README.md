@@ -46,8 +46,12 @@ directly (it's gitignored, so your real name/phone/email never get committed):
 - `buyer`: your name, phone, and optional email.
 - `profiles.<name>`: one entry per show/session you want to target.
   - `showUrl`: the tiwall show page, e.g. `https://www.tiwall.com/s/uncle.vanya`.
-  - `sessionMatch`: a substring that uniquely identifies the session row you want
+  - `sessionMatch`: a substring that identifies the session row you want
     (e.g. `چهارشنبه ۰۷ مرداد`) — copy it from the show page's session list.
+  - `sessionTime` (optional): the session's start time, e.g. `۱۹:۰۰`. When a
+    single date has more than one show (a 19:00 and a 21:00), the date alone is
+    ambiguous — add this and the tool requires it to also be present in the row,
+    pinning the exact slot. Omit it if the date is already unique.
   - `targetDatetime`: ISO 8601 datetime with timezone offset, e.g.
     `2026-08-04T12:00:00+03:30`. Set to `null` to run immediately (useful for
     testing against an already-open show).
